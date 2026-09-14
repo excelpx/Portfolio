@@ -10,16 +10,44 @@ class FirebaseService
 
     public function __construct()
     {
-        $credentials = json_decode(
-            env('FIREBASE_CREDENTIALS_JSON'),
-            true,
-            512,
-            JSON_THROW_ON_ERROR
-        );
+        $credentialFile = storage_path('app/firebase-credentials.json');
+        $credentialsJson = env('FIREBASE_CREDENTIALS_JSON');
 
-        $factory = (new Factory)
-            ->withServiceAccount($credentials)
-            ->withDatabaseUri(env('FIREBASE_DATABASE_URL'));
+        /*
+         * LOCAL
+         * Jika file credential tersedia, gunakan file.
+         */
+        if (file_exists($credentialFile)) {
+            $factory = (new Factory)
+                ->withServiceAccount($credentialFile)
+                ->withDatabaseUri(env('FIREBASE_DATABASE_URL'));
+        }
+
+        /*
+         * PRODUCTION / VERCEL
+         * Jika file tidak tersedia, gunakan Environment Variable.
+         */
+        elseif (!empty($credentialsJson)) {
+            $credentials = json_decode(
+                $credentialsJson,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+
+            $factory = (new Factory)
+                ->withServiceAccount($credentials)
+                ->withDatabaseUri(env('FIREBASE_DATABASE_URL'));
+        }
+
+        /*
+         * Tidak ada credential.
+         */
+        else {
+            throw new \RuntimeException(
+                'Firebase credentials tidak ditemukan.'
+            );
+        }
 
         $this->database = $factory->createDatabase();
     }
