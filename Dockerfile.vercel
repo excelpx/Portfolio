@@ -76,9 +76,6 @@ RUN mkdir -p \
     bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
-# Clear Laravel caches
-RUN php artisan optimize:clear
-
 # Vercel container
 ENV SERVER_NAME=:80
 
