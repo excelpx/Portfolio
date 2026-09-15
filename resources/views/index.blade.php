@@ -978,24 +978,24 @@
                 $url = trim((string) ($social['url'] ?? ''));
             @endphp
 
-            @if ($name !== '' && $iconUrl !== '' && $url !== '')
+        @if ($name !== '' && $iconUrl !== '' && $url !== '')
 
-                <a
-                    href="{{ $url }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="{{ $name }}"
-                    title="{{ $name }}"
+            <a
+                href="{{ $url }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="{{ $name }}"
+                title="{{ $name }}"
+            >
+                <img
+                    src="{{ $iconUrl }}"
+                    alt="{{ $name }}"
+                    loading="lazy"
+                    class="social-icon-img"
                 >
-                    <img
-                        src="{{ $iconUrl }}"
-                        alt="{{ $name }}"
-                        loading="lazy"
-                    >
-                </a>
+            </a>
 
-            @endif
-
+        @endif
         @endforeach
       </div>
       <div class="credits">
