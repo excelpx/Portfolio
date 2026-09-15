@@ -14,15 +14,28 @@ class CloudinaryService
         return $this->uploadImage($file, 'portfolio/testimonials', 'foto testimonial');
     }
 
-    public function uploadImage(UploadedFile $file, string $folder, string $fileLabel = 'gambar'): string
+    public function uploadProfileImage(UploadedFile $file): string
     {
+        return $this->uploadImage($file, 'portfolio/profile', 'foto profile');
+    }
+
+    public function uploadImage(
+        UploadedFile $file,
+        string $folder,
+        string $fileLabel = 'gambar'
+    ): string {
         $cloudinaryUrl = trim((string) config('services.cloudinary.url'));
         $cloudName = (string) config('services.cloudinary.cloud_name');
         $apiKey = (string) config('services.cloudinary.api_key');
         $apiSecret = (string) config('services.cloudinary.api_secret');
 
-        if ($cloudinaryUrl === '' && ($cloudName === '' || $apiKey === '' || $apiSecret === '')) {
-            throw new RuntimeException('Konfigurasi Cloudinary belum lengkap.');
+        if (
+            $cloudinaryUrl === '' &&
+            ($cloudName === '' || $apiKey === '' || $apiSecret === '')
+        ) {
+            throw new RuntimeException(
+                'Konfigurasi Cloudinary belum lengkap.'
+            );
         }
 
         if ($cloudinaryUrl !== '') {
@@ -43,7 +56,9 @@ class CloudinaryService
         $path = $file->getRealPath();
 
         if ($path === false) {
-            throw new RuntimeException("File {$fileLabel} tidak dapat dibaca.");
+            throw new RuntimeException(
+                "File {$fileLabel} tidak dapat dibaca."
+            );
         }
 
         $result = (new UploadApi())->upload($path, [
@@ -54,7 +69,9 @@ class CloudinaryService
         $url = $result['secure_url'] ?? null;
 
         if (! is_string($url) || $url === '') {
-            throw new RuntimeException("Cloudinary tidak mengembalikan URL {$fileLabel}.");
+            throw new RuntimeException(
+                "Cloudinary tidak mengembalikan URL {$fileLabel}."
+            );
         }
 
         return $url;
