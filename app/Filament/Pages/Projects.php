@@ -3,16 +3,12 @@
 namespace App\Filament\Pages;
 
 use App\Services\FirebaseService;
-use App\Services\ImageKitService;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Illuminate\Http\Client\ConnectionException;
-use Illuminate\Http\UploadedFile;
-use RuntimeException;
 
 class Projects extends Page implements HasForms
 {
@@ -33,14 +29,26 @@ class Projects extends Page implements HasForms
     public function mount(): void
     {
         $database = app(FirebaseService::class)->getDatabase();
-        $projects = $database->getReference('projects')->getValue();
-        $categories = $database->getReference('categories')->getValue();
+
+        $projects = $database
+            ->getReference('projects')
+            ->getValue();
+
+        $categories = $database
+            ->getReference('categories')
+            ->getValue();
+
         $categorySlugs = [];
 
         if (is_array($categories)) {
             foreach ($categories as $category) {
-                if (is_array($category) && ! empty($category['slug'])) {
-                    $categorySlugs[(string) $category['name']] = (string) $category['slug'];
+                if (
+                    is_array($category) &&
+                    ! empty($category['slug']) &&
+                    ! empty($category['name'])
+                ) {
+                    $categorySlugs[(string) $category['name']]
+                        = (string) $category['slug'];
                 }
             }
         }
@@ -54,25 +62,58 @@ class Projects extends Page implements HasForms
                 }
 
                 $techStack = $project['tech_stack'] ?? [];
-                $techStack = is_array($techStack) ? array_values($techStack) : [];
+
+                $techStack = is_array($techStack)
+                    ? array_values($techStack)
+                    : [];
 
                 $items[] = [
                     'key' => (string) $key,
-                    'title' => (string) ($project['title'] ?? ''),
-                    'category' => $categorySlugs[(string) ($project['category'] ?? '')] ?? (string) ($project['category'] ?? ''),
-                    'description' => (string) ($project['description'] ?? ''),
+
+                    'title' => (string) (
+                        $project['title'] ?? ''
+                    ),
+
+                    'category' => $categorySlugs[
+                        (string) ($project['category'] ?? '')
+                    ] ?? (string) (
+                        $project['category'] ?? ''
+                    ),
+
+                    'description' => (string) (
+                        $project['description'] ?? ''
+                    ),
+
                     'tech_stack' => $techStack,
-                    'image' => (string) ($project['image'] ?? ''),
+
+                    'image' => (string) (
+                        $project['image'] ?? ''
+                    ),
+
                     'image_upload' => null,
-                    'project_url' => (string) ($project['project_url'] ?? ''),
-                    'instagram_url' => (string) ($project['instagram_url'] ?? ''),
-                    'instagram_aspect_ratio' => (string) ($project['instagram_aspect_ratio'] ?? '4:5'),
-                    'status' => (string) ($project['status'] ?? ''),
+
+                    'project_url' => (string) (
+                        $project['project_url'] ?? ''
+                    ),
+
+                    'instagram_url' => (string) (
+                        $project['instagram_url'] ?? ''
+                    ),
+
+                    'instagram_aspect_ratio' => (string) (
+                        $project['instagram_aspect_ratio'] ?? '4:5'
+                    ),
+
+                    'status' => (string) (
+                        $project['status'] ?? ''
+                    ),
                 ];
             }
         }
 
-        $this->form->fill(['projects' => $items]);
+        $this->form->fill([
+            'projects' => $items,
+        ]);
     }
 
     public function form(Form $form): Form
@@ -81,12 +122,19 @@ class Projects extends Page implements HasForms
             ->getDatabase()
             ->getReference('categories')
             ->getValue();
+
         $categoryOptions = [];
 
         if (is_array($categories)) {
             foreach ($categories as $category) {
-                if (is_array($category) && ! empty($category['slug']) && ! empty($category['name'])) {
-                    $categoryOptions[(string) $category['slug']] = (string) $category['name'];
+                if (
+                    is_array($category) &&
+                    ! empty($category['slug']) &&
+                    ! empty($category['name'])
+                ) {
+                    $categoryOptions[
+                        (string) $category['slug']
+                    ] = (string) $category['name'];
                 }
             }
         }
@@ -118,7 +166,10 @@ class Projects extends Page implements HasForms
                             ->options($categoryOptions)
                             ->searchable()
                             ->required()
-                            ->disabled(fn (): bool => $categoryOptions === []),
+                            ->disabled(
+                                fn (): bool =>
+                                    $categoryOptions === []
+                            ),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Deskripsi')
@@ -132,20 +183,19 @@ class Projects extends Page implements HasForms
 
                         Forms\Components\TextInput::make('image')
                             ->label('URL atau Path Gambar')
-                            ->placeholder('img/portfolio/app-1.jpg atau https://...')
+                            ->placeholder(
+                                'https://ik.imagekit.io/...'
+                            )
+                            ->helperText(
+                                'URL gambar akan terisi otomatis setelah upload ke ImageKit.'
+                            )
                             ->columnSpanFull(),
 
-                        Forms\Components\FileUpload::make('image_upload')
+                        Forms\Components\ViewField::make('image_upload')
                             ->label('Upload Image')
-                            ->image()
-                            ->acceptedFileTypes([
-                                'image/jpeg',
-                                'image/png',
-                                'image/webp',
-                            ])
-                            ->maxSize(10240)
-                            ->storeFiles(false)
-                            ->helperText('Opsional. JPG, JPEG, PNG, atau WEBP. Maksimal 10 MB.')
+                            ->view(
+                                'filament.forms.imagekit-upload'
+                            )
                             ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('project_url')
@@ -156,14 +206,20 @@ class Projects extends Page implements HasForms
                         Forms\Components\TextInput::make('instagram_url')
                             ->label('Instagram URL')
                             ->url()
-                            ->placeholder('https://www.instagram.com/p/XXXXXXXX/')
-                            ->helperText('Gunakan URL Instagram Post atau Reel.')
+                            ->placeholder(
+                                'https://www.instagram.com/p/XXXXXXXX/'
+                            )
+                            ->helperText(
+                                'Gunakan URL Instagram Post atau Reel.'
+                            )
                             ->rules([
                                 'regex:/^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]+\/?(?:\?.*)?$/i',
                             ])
                             ->columnSpanFull(),
 
-                        Forms\Components\Select::make('instagram_aspect_ratio')
+                        Forms\Components\Select::make(
+                            'instagram_aspect_ratio'
+                        )
                             ->label('Instagram Aspect Ratio')
                             ->options([
                                 '4:5' => '4:5 (Portrait)',
@@ -186,62 +242,91 @@ class Projects extends Page implements HasForms
     public function save(): void
     {
         $data = $this->form->getState();
-        $projects = is_array($data['projects'] ?? null) ? $data['projects'] : [];
+
+        $projects = is_array($data['projects'] ?? null)
+            ? $data['projects']
+            : [];
+
         $reference = app(FirebaseService::class)
             ->getDatabase()
             ->getReference('projects');
+
         $existing = $reference->getValue();
-        $existing = is_array($existing) ? $existing : [];
+
+        $existing = is_array($existing)
+            ? $existing
+            : [];
+
         $submittedKeys = [];
         $payloads = [];
 
         foreach ($projects as $project) {
-            $key = trim((string) ($project['key'] ?? ''));
-            $image = trim((string) ($project['image'] ?? ''));
-            $uploadedFile = $this->getUploadedFile($project['image_upload'] ?? null);
+            $key = trim(
+                (string) ($project['key'] ?? '')
+            );
 
-            if ($uploadedFile instanceof UploadedFile) {
-                try {
-                                $image = app(ImageKitService::class)->upload($uploadedFile, 'portfolio');
-            } catch (ConnectionException $e) {
-                Notification::make()
-                    ->title('Upload gambar project gagal')
-                    ->body('Koneksi ke ImageKit gagal: ' . $e->getMessage())
-                    ->danger()
-                    ->persistent()
-                    ->send();
+            $image = trim(
+                (string) ($project['image'] ?? '')
+            );
 
-                return;
-            } catch (RuntimeException $e) {
-                Notification::make()
-                    ->title('Upload gambar project gagal')
-                    ->body($e->getMessage())
-                    ->danger()
-                    ->persistent()
-                    ->send();
+            $instagramAspectRatio = (string) (
+                $project['instagram_aspect_ratio'] ?? '4:5'
+            );
 
-                return;
-            }
-    }
-
-            $instagramAspectRatio = (string) ($project['instagram_aspect_ratio'] ?? '4:5');
-            $techStack = is_array($project['tech_stack'] ?? null)
-                ? array_values(array_filter(array_map('trim', $project['tech_stack'])))
+            $techStack = is_array(
+                $project['tech_stack'] ?? null
+            )
+                ? array_values(
+                    array_filter(
+                        array_map(
+                            'trim',
+                            $project['tech_stack']
+                        )
+                    )
+                )
                 : [];
+
             $payload = [
-                'title' => trim((string) ($project['title'] ?? '')),
-                'category' => trim((string) ($project['category'] ?? '')),
-                'description' => trim((string) ($project['description'] ?? '')),
+                'title' => trim(
+                    (string) ($project['title'] ?? '')
+                ),
+
+                'category' => trim(
+                    (string) ($project['category'] ?? '')
+                ),
+
+                'description' => trim(
+                    (string) ($project['description'] ?? '')
+                ),
+
                 'tech_stack' => $techStack,
+
                 'image' => $image,
-                'project_url' => trim((string) ($project['project_url'] ?? '')),
-                'instagram_url' => trim((string) ($project['instagram_url'] ?? '')),
+
+                'project_url' => trim(
+                    (string) ($project['project_url'] ?? '')
+                ),
+
+                'instagram_url' => trim(
+                    (string) ($project['instagram_url'] ?? '')
+                ),
+
                 'instagram_aspect_ratio' => in_array(
                     $instagramAspectRatio,
-                    ['4:5', '1:1', '9:16', '16:9'],
+                    [
+                        '4:5',
+                        '1:1',
+                        '9:16',
+                        '16:9',
+                    ],
                     true
-                ) ? $instagramAspectRatio : '4:5',
-                'status' => trim((string) ($project['status'] ?? '')),
+                )
+                    ? $instagramAspectRatio
+                    : '4:5',
+
+                'status' => trim(
+                    (string) ($project['status'] ?? '')
+                ),
             ];
 
             $payloads[] = [
@@ -254,19 +339,35 @@ class Projects extends Page implements HasForms
             $key = $item['key'];
             $payload = $item['payload'];
 
-            if ($key !== '' && array_key_exists($key, $existing)) {
-                $reference->getChild($key)->set($payload);
+            if (
+                $key !== '' &&
+                array_key_exists($key, $existing)
+            ) {
+                $reference
+                    ->getChild($key)
+                    ->set($payload);
+
                 $submittedKeys[] = $key;
+
                 continue;
             }
 
             $newProject = $reference->push($payload);
+
             $submittedKeys[] = $newProject->getKey();
         }
 
         foreach (array_keys($existing) as $key) {
-            if (! in_array((string) $key, $submittedKeys, true)) {
-                $reference->getChild($key)->remove();
+            if (
+                ! in_array(
+                    (string) $key,
+                    $submittedKeys,
+                    true
+                )
+            ) {
+                $reference
+                    ->getChild($key)
+                    ->remove();
             }
         }
 
@@ -276,20 +377,5 @@ class Projects extends Page implements HasForms
             ->title('Projects berhasil disimpan')
             ->success()
             ->send();
-    }
-
-    private function getUploadedFile(mixed $value): ?UploadedFile
-    {
-        if ($value instanceof UploadedFile) {
-            return $value;
-        }
-
-        if (is_array($value)) {
-            $firstValue = reset($value);
-
-            return $firstValue instanceof UploadedFile ? $firstValue : null;
-        }
-
-        return null;
     }
 }
