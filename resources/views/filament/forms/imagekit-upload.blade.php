@@ -1,5 +1,6 @@
 @php
     $statePath = $getStatePath();
+    $imagePath = str_replace('image_upload', 'image', $statePath);
 @endphp
 
 <div
@@ -227,12 +228,20 @@
 
                 /* PREVIEW */
 
-                this.preview = result.url;
-                this.progress = 100;
+            this.preview = result.url;
+            this.progress = 100;
 
-                alert(
-                    'Gambar berhasil di-upload ke ImageKit.'
-                );
+            /*
+            * Simpan URL ImageKit ke field image
+            */
+            await $wire.set(
+                @js($imagePath),
+                result.url
+            );
+
+            alert(
+                'Gambar berhasil di-upload ke ImageKit.'
+            );
 
             } catch (error) {
 
