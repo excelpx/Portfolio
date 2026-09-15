@@ -938,13 +938,65 @@
 
     <div class="container">
       <div class="copyright text-center ">
-        <p>© <span>Copyright</span> <strong class="px-1 sitename">DevFolio</strong> <span>All Rights Reserved</span></p>
+        <p>© <span>Copyright</span> <strong class="px-1 sitename">2026</strong> <span>All Rights Reserved</span></p>
       </div>
       <div class="social-links d-flex justify-content-center">
-        <a href=""><i class="bi bi-twitter-x"></i></a>
-        <a href=""><i class="bi bi-facebook"></i></a>
-        <a href=""><i class="bi bi-instagram"></i></a>
-        <a href=""><i class="bi bi-linkedin"></i></a>
+    @php
+        $socialMedia = app(\App\Services\FirebaseService::class)
+            ->getDatabase()
+            ->getReference('social_media')
+            ->getValue();
+
+        $socialMedia = is_array($socialMedia)
+            ? $socialMedia
+            : [];
+
+        // Hanya tampilkan social media yang aktif
+        $socialMedia = array_filter(
+            $socialMedia,
+            function ($social) {
+                return is_array($social)
+                    && ($social['active'] ?? false) === true;
+            }
+        );
+
+        // Urutkan berdasarkan order
+        usort(
+            $socialMedia,
+            function ($a, $b) {
+                return ((int) ($a['order'] ?? 0))
+                    <=> ((int) ($b['order'] ?? 0));
+            }
+        );
+    @endphp
+
+        @foreach ($socialMedia as $social)
+
+            @php
+                $name = trim((string) ($social['name'] ?? ''));
+                $iconUrl = trim((string) ($social['icon_url'] ?? ''));
+                $url = trim((string) ($social['url'] ?? ''));
+            @endphp
+
+            @if ($name !== '' && $iconUrl !== '' && $url !== '')
+
+                <a
+                    href="{{ $url }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="{{ $name }}"
+                    title="{{ $name }}"
+                >
+                    <img
+                        src="{{ $iconUrl }}"
+                        alt="{{ $name }}"
+                        loading="lazy"
+                    >
+                </a>
+
+            @endif
+
+        @endforeach
       </div>
       <div class="credits">
         <!-- All the links in the footer should remain intact. -->
