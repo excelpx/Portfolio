@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 use App\Services\FirebaseService;
 
 class PortfolioController extends Controller
@@ -20,57 +21,51 @@ class PortfolioController extends Controller
     // READ
     public function index()
     {
-        $profile = $this->database
-            ->getReference('profile')
-            ->getValue();
+        /*
+        |--------------------------------------------------------------------------
+        | Ambil data portfolio dari cache
+        |--------------------------------------------------------------------------
+        | Cache berlaku selama 60 detik.
+        | Jadi Firebase tidak perlu dipanggil setiap kali halaman dibuka.
+        */
 
-        $hero = $this->database
-            ->getReference('hero')
-            ->getValue();
+        $data = Cache::remember(
+            'portfolio_data',
+            now()->addSeconds(60),
+            function () {
+                return $this->database
+                    ->getReference('/')
+                    ->getValue();
+            }
+        );
 
-        $projects = $this->database
-            ->getReference('projects')
-            ->getValue();
+        $data = is_array($data) ? $data : [];
 
-        $skills = $this->database
-            ->getReference('skills')
-            ->getValue();
+        /*
+        |--------------------------------------------------------------------------
+        | Pecah data Firebase menjadi masing-masing section
+        |--------------------------------------------------------------------------
+        */
 
-        $categories = $this->database
-            ->getReference('categories')
-            ->getValue();
+        $profile = $data['profile'] ?? [];
+        $hero = $data['hero'] ?? [];
+        $projects = $data['projects'] ?? [];
+        $skills = $data['skills'] ?? [];
+        $categories = $data['categories'] ?? [];
+        $resume = $data['resume'] ?? [];
+        $services = $data['services'] ?? [];
+        $statistics = $data['statistics'] ?? [];
+        $toolsTechnologies = $data['tools_technologies'] ?? [];
+        $pricing = $data['pricing'] ?? [];
+        $faq = $data['faq'] ?? [];
+        $testimonials = $data['testimonials'] ?? [];
+        $contact = $data['contact'] ?? [];
 
-        $resume = $this->database
-            ->getReference('resume')
-            ->getValue();
-
-        $services = $this->database
-            ->getReference('services')
-            ->getValue();
-
-        $statistics = $this->database
-            ->getReference('statistics')
-            ->getValue();
-
-        $toolsTechnologies = $this->database
-            ->getReference('tools_technologies')
-            ->getValue();
-
-        $pricing = $this->database
-            ->getReference('pricing')
-            ->getValue();
-
-        $faq = $this->database
-            ->getReference('faq')
-            ->getValue();
-
-        $testimonials = $this->database
-            ->getReference('testimonials')
-            ->getValue();
-
-        $contact = $this->database
-            ->getReference('contact')
-            ->getValue();
+        /*
+        |--------------------------------------------------------------------------
+        | Tampilkan website
+        |--------------------------------------------------------------------------
+        */
 
         return view('index', [
             'profile' => is_array($profile) ? $profile : [],
@@ -89,6 +84,7 @@ class PortfolioController extends Controller
         ]);
     }
 
+    // CONTACT
     public function sendContact(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -108,12 +104,21 @@ class PortfolioController extends Controller
 
         $validated = $validator->validated();
 
-        $apiUrl = trim((string) config('services.contact_api_url'));
+        $apiUrl = trim(
+            (string) config('services.contact_api_url')
+        );
 
-        if ($apiUrl === '' || filter_var($apiUrl, FILTER_VALIDATE_URL) === false) {
+        if (
+            $apiUrl === '' ||
+            filter_var($apiUrl, FILTER_VALIDATE_URL) === false
+        ) {
             Log::error('Contact API URL is not configured.');
 
-            return $this->contactError($request, 'Pesan tidak dapat dikirim saat ini. Silakan coba lagi nanti.', 503);
+            return $this->contactError(
+                $request,
+                'Pesan tidak dapat dikirim saat ini. Silakan coba lagi nanti.',
+                503
+            );
         }
 
         try {
@@ -125,33 +130,64 @@ class PortfolioController extends Controller
 
             $responseData = $response->json();
 
-            if (! $response->successful() || ! is_array($responseData) || ($responseData['success'] ?? false) !== true) {
-                Log::warning('Contact API rejected the message.', [
-                    'status' => $response->status(),
-                    'response_is_json' => is_array($responseData),
-                ]);
+            if (
+                ! $response->successful() ||
+                ! is_array($responseData) ||
+                ($responseData['success'] ?? false) !== true
+            ) {
+                Log::warning(
+                    'Contact API rejected the message.',
+                    [
+                        'status' => $response->status(),
+                        'response_is_json' => is_array($responseData),
+                    ]
+                );
 
-                return $this->contactError($request, 'Pesan tidak dapat dikirim saat ini. Silakan coba lagi nanti.', 502);
+                return $this->contactError(
+                    $request,
+                    'Pesan tidak dapat dikirim saat ini. Silakan coba lagi nanti.',
+                    502
+                );
             }
         } catch (\Throwable $exception) {
-            Log::error('Contact API request failed.', [
-                'exception' => $exception::class,
-                'message' => $exception->getMessage(),
-            ]);
+            Log::error(
+                'Contact API request failed.',
+                [
+                    'exception' => $exception::class,
+                    'message' => $exception->getMessage(),
+                ]
+            );
 
-            return $this->contactError($request, 'Pesan tidak dapat dikirim saat ini. Silakan coba lagi nanti.', 500);
+            return $this->contactError(
+                $request,
+                'Pesan tidak dapat dikirim saat ini. Silakan coba lagi nanti.',
+                500
+            );
         }
 
-        if ($request->expectsJson() || $request->ajax()) {
+        if (
+            $request->expectsJson() ||
+            $request->ajax()
+        ) {
             return response('OK');
         }
 
-        return back()->with('contact_success', 'Your message has been sent. Thank you!');
+        return back()->with(
+            'contact_success',
+            'Your message has been sent. Thank you!'
+        );
     }
 
-    private function contactError(Request $request, string $message, int $status)
-    {
-        if ($request->expectsJson() || $request->ajax()) {
+    // CONTACT ERROR
+    private function contactError(
+        Request $request,
+        string $message,
+        int $status
+    ) {
+        if (
+            $request->expectsJson() ||
+            $request->ajax()
+        ) {
             return response($message, $status);
         }
 
@@ -163,13 +199,26 @@ class PortfolioController extends Controller
     // CREATE
     public function store(Request $request)
     {
-        $reference = $this->database->getReference('projects');
+        $reference = $this->database
+            ->getReference('projects');
 
         $newProject = $reference->push([
             'title' => 'Aplikasi Manajemen Tugas',
-            'tech_stack' => ['Laravel', 'Firebase', 'Vue'],
+            'tech_stack' => [
+                'Laravel',
+                'Firebase',
+                'Vue'
+            ],
             'status' => 'Selesai'
         ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Hapus cache setelah data projects berubah
+        |--------------------------------------------------------------------------
+        */
+
+        Cache::forget('portfolio_data');
 
         return response()->json([
             'message' => 'Proyek berhasil ditambahkan',
